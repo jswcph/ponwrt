@@ -1,0 +1,18 @@
+#!/bin/sh
+
+uci -q batch <<'EOF'
+set argon.global=global
+set argon.global.primary='#4682B4'
+set argon.global.dark_primary='#4A6B5D'
+set argon.global.blur='0.5'
+set argon.global.blur_dark='0'
+set argon.global.transparency='0.3'
+set argon.global.transparency_dark='0.3'
+set argon.global.mode='normal'
+set argon.global.online_wallpaper=''
+set argon.global.use_api_key=''
+set argon.global.use_exact_resolution='1'
+commit argon
+EOF
+
+exit 0
