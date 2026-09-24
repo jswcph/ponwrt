@@ -2,22 +2,12 @@ name: Ponwrt-Copy
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Release tag
-        required: true
-        type: string
-      prerelease:
-        description: Mark as prerelease
-        required: true
-        default: true
-        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ inputs.tag }}
+  group: ponwrt-copy-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -75,8 +65,8 @@ jobs:
           set -e
           CORE_DIR="package/ponwrt-mihomo/files"
           mkdir -p "$CORE_DIR"
-          curl -fL --retry 3 \\
-            "https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz" \\
+          curl -fL --retry 3 \
+            "https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz" \
             -o /tmp/clash-linux-arm64.tar.gz
           rm -f "$CORE_DIR/clash_meta"
           tar -xzf /tmp/clash-linux-arm64.tar.gz -C "$CORE_DIR"
@@ -115,55 +105,119 @@ jobs:
       - name: Build ${{ matrix.target }}
         run: make -j"$(nproc)"
 
-      - name: Pack ${{ matrix.target }}
+      - name: Collect ${{ matrix.target }} firmware
         run: |
-          mkdir release
-          tar --zstd -cf "release/ponwrt-${{ matrix.target }}.tar.zst" \
-            -C bin/targets/airoha "${{ matrix.target }}"
+          set -e
+          TARGET_DIR="bin/targets/airoha/${{ matrix.target }}"
+          RELEASE_DIR="release"
+          mkdir -p "$RELEASE_DIR"
 
-      - name: Upload ${{ matrix.target }}
+          echo "=== Firmware files ==="
+          find "$TARGET_DIR" -type f \(
+            -name '*.itb' -o
+            -name '*.bin' -o
+            -name '*.img' -o
+            -name '*.img.gz'
+          \) -print
+
+          find "$TARGET_DIR" -type f \(
+            -name '*.itb' -o
+            -name '*.bin' -o
+            -name '*.img' -o
+            -name '*.img.gz'
+          \) -exec cp -t "$RELEASE_DIR" {} +
+
+          count="$(find "$RELEASE_DIR" -maxdepth 1 -type f \(
+            -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz'
+          \) | wc -l)"
+
+          [ "$count" -gt 0 ] || {
+            echo "ERROR: No firmware image found for ${{ matrix.target }}"
+            exit 1
+          }
+
+          echo "Collected $count firmware file(s)."
+
+          tar --zstd -cf "$RELEASE_DIR/ponwrt-${{ matrix.target }}.tar.zst" \
+            -C "$TARGET_DIR" .
+
+      - name: Upload ${{ matrix.target }} artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ponwrt-${{ matrix.target }}
-          path: release/*.tar.zst
+          path: release/*
           if-no-files-found: error
           retention-days: 7
 
   release:
-    name: Create release
+    name: Create GitHub Release
     needs: build
+    if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
 
     steps:
-      - name: Download firmware archives
+      - name: Download firmware artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: ponwrt-*
           path: release
           merge-multiple: true
 
-      - name: Create checksums
+      - name: Verify release files
         working-directory: release
-        run: sha256sum *.tar.zst > sha256sums
+        run: |
+          set -e
+          echo "=== Release files ==="
+          ls -lah
 
-      - name: Create GitHub release
+          count="$(find . -maxdepth 1 -type f \(
+            -name '*.itb' -o
+            -name '*.bin' -o
+            -name '*.img' -o
+            -name '*.img.gz'
+          \) | wc -l)"
+
+          [ "$count" -gt 0 ] || {
+            echo "ERROR: No firmware image was collected."
+            exit 1
+          }
+
+          sha256sum \
+            *.itb \
+            *.bin \
+            *.img \
+            *.img.gz \
+            2>/dev/null > sha256sums || true
+
+          [ -s sha256sums ] || {
+            echo "ERROR: Failed to generate sha256sums."
+            exit 1
+          }
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="R$(date -u '+%Y.%m.%d.%H%M')-${GITHUB_SHA::7}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG"
+
+      - name: Create GitHub Release and upload firmware
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.tag }}
-          PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          args=(
-            "$RELEASE_TAG"
-            release/*.tar.zst
-            release/sha256sums
-            --repo "$GITHUB_REPOSITORY"
-            --target "$GITHUB_SHA"
-            --title "PonWrt $RELEASE_TAG"
+          set -e
+
+          gh release create "$RELEASE_TAG" \
+            release/*.itb \
+            release/*.bin \
+            release/*.img \
+            release/*.img.gz \
+            release/*.tar.zst \
+            release/sha256sums \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "PonWrt $RELEASE_TAG" \
             --generate-notes
-          )
-          if [ "$PRERELEASE" = true ]; then
-            args+=(--prerelease)
-          fi
-          gh release create "${args[@]}"
