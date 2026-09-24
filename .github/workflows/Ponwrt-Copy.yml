@@ -145,23 +145,12 @@ jobs:
           mkdir -p "$RELEASE_DIR"
 
           echo "=== Firmware files ==="
-          find "$TARGET_DIR" -type f \(
-            -name '*.itb' -o
-            -name '*.bin' -o
-            -name '*.img' -o
-            -name '*.img.gz'
-          \) -print
+          find "$TARGET_DIR" -type f \( -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz' \) -print
 
-          find "$TARGET_DIR" -type f \(
-            -name '*.itb' -o
-            -name '*.bin' -o
-            -name '*.img' -o
-            -name '*.img.gz'
-          \) -exec cp -t "$RELEASE_DIR" {} +
+          find "$TARGET_DIR" -type f \( -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz' \) \
+            -exec cp -t "$RELEASE_DIR" {} +
 
-          count="$(find "$RELEASE_DIR" -maxdepth 1 -type f \(
-            -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz'
-          \) | wc -l)"
+          count="$(find "$RELEASE_DIR" -maxdepth 1 -type f \( -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz' \) | wc -l)"
 
           [ "$count" -gt 0 ] || {
             echo "ERROR: No firmware image found for ${{ matrix.target }}"
@@ -204,12 +193,7 @@ jobs:
           echo "=== Release files ==="
           ls -lah
 
-          count="$(find . -maxdepth 1 -type f \(
-            -name '*.itb' -o
-            -name '*.bin' -o
-            -name '*.img' -o
-            -name '*.img.gz'
-          \) | wc -l)"
+          count="$(find . -maxdepth 1 -type f \( -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz' \) | wc -l)"
 
           [ "$count" -gt 0 ] || {
             echo "ERROR: No firmware image was collected."
