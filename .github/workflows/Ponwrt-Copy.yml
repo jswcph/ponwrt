@@ -62,25 +62,55 @@ jobs:
 
       - name: Prepare Mihomo Meta core
         run: |
-          set -e
+          set -euo pipefail
+
           CORE_DIR="package/ponwrt-mihomo/files"
-          mkdir -p "$CORE_DIR"
-          curl -fL --retry 3 \
-            "https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz" \
-            -o /tmp/clash-linux-arm64.tar.gz
+          CORE_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz"
+          WORK_DIR="$(mktemp -d)"
+          trap 'rm -rf "$WORK_DIR"' EXIT
+
+          mkdir -p "$CORE_DIR" "$WORK_DIR/extract"
+
+          # 下载内核压缩包
+          curl -fL --retry 3 "$CORE_URL" -o "$WORK_DIR/core.tar.gz"
+          tar -tzf "$WORK_DIR/core.tar.gz"
+
+          # 解压到独立临时目录，避免误取 files/ 目录里的其他文件
+          tar -xzf "$WORK_DIR/core.tar.gz" -C "$WORK_DIR/extract"
+
+          # 优先按常见名称查找，找不到再挑选第一个 ELF 可执行文件
+          bin=""
+          for name in clash clash_meta mihomo; do
+            found="$(find "$WORK_DIR/extract" -type f -name "$name" -print -quit)"
+            if [ -n "$found" ]; then
+              bin="$found"
+              break
+            fi
+          done
+
+          if [ -z "$bin" ]; then
+            while IFS= read -r f; do
+              if file "$f" | grep -q 'ELF'; then
+                bin="$f"
+                break
+              fi
+            done < <(find "$WORK_DIR/extract" -type f)
+          fi
+
+          [ -n "$bin" ] || { echo "Mihomo core binary not found in archive"; exit 1; }
+
           rm -f "$CORE_DIR/clash_meta"
-          tar -xzf /tmp/clash-linux-arm64.tar.gz -C "$CORE_DIR"
-          if [ -f "$CORE_DIR/clash" ]; then
-            mv "$CORE_DIR/clash" "$CORE_DIR/clash_meta"
-          fi
-          if [ ! -f "$CORE_DIR/clash_meta" ]; then
-            found="$(find "$CORE_DIR" -maxdepth 1 -type f ! -name 'clash_meta' -print -quit)"
-            [ -n "$found" ] || { echo "Mihomo core binary not found in archive"; exit 1; }
-            mv "$found" "$CORE_DIR/clash_meta"
-          fi
-          chmod 0755 "$CORE_DIR/clash_meta"
-          file "$CORE_DIR/clash_meta"
+          install -m 0755 "$bin" "$CORE_DIR/clash_meta"
+
+          # 校验：文件非空，且必须是 aarch64 的 ELF 可执行文件
           test -s "$CORE_DIR/clash_meta"
+          file "$CORE_DIR/clash_meta"
+          file "$CORE_DIR/clash_meta" | grep -q 'ELF 64-bit.*ARM aarch64' || {
+            echo "ERROR: core is not an ELF aarch64 binary"
+            exit 1
+          }
+
+          ls -l "$CORE_DIR"
 
       - name: Load repository signing key
         env:
@@ -103,7 +133,9 @@ jobs:
         run: make download -j"$(nproc)"
 
       - name: Build ${{ matrix.target }}
-        run: make -j"$(nproc)"
+        run: |
+          # 先并行编译；失败后用 -j1 V=sc 重跑，输出完整的错误日志
+          make -j"$(nproc)" V=sc || make -j1 V=sc
 
       - name: Collect ${{ matrix.target }} firmware
         run: |
