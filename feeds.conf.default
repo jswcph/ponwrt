@@ -8,3 +8,9 @@ src-git pon_userspace https://github.com/pbs05/openwrt-pon-userspace.git
 #src-git targets https://github.com/openwrt/targets.git
 #src-git oldpackages http://git.openwrt.org/packages.git
 #src-link custom /usr/src/openwrt/custom-feed
+src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main
+src-git passwall_luci https://github.com/Openwrt-Passwall/openwrt-passwall.git;main
+src-git openclash https://github.com/vernesong/OpenClash.git;master
+src-git istore https://github.com/linkease/istore.git;main
+src-git argon https://github.com/jerrykuku/luci-theme-argon.git;master
+src-git argon_config https://github.com/jerrykuku/luci-app-argon-config.git;master
