@@ -1,4 +1,4 @@
-name: Release PonWrt
+name: Ponwrt-Copy
 
 on:
   workflow_dispatch:
