@@ -70,6 +70,28 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+      - name: Prepare Mihomo Meta core
+        run: |
+          set -e
+          CORE_DIR="package/ponwrt-mihomo/files"
+          mkdir -p "$CORE_DIR"
+          curl -fL --retry 3 \\
+            "https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz" \\
+            -o /tmp/clash-linux-arm64.tar.gz
+          rm -f "$CORE_DIR/clash_meta"
+          tar -xzf /tmp/clash-linux-arm64.tar.gz -C "$CORE_DIR"
+          if [ -f "$CORE_DIR/clash" ]; then
+            mv "$CORE_DIR/clash" "$CORE_DIR/clash_meta"
+          fi
+          if [ ! -f "$CORE_DIR/clash_meta" ]; then
+            found="$(find "$CORE_DIR" -maxdepth 1 -type f ! -name 'clash_meta' -print -quit)"
+            [ -n "$found" ] || { echo "Mihomo core binary not found in archive"; exit 1; }
+            mv "$found" "$CORE_DIR/clash_meta"
+          fi
+          chmod 0755 "$CORE_DIR/clash_meta"
+          file "$CORE_DIR/clash_meta"
+          test -s "$CORE_DIR/clash_meta"
+
       - name: Load repository signing key
         env:
           PONWRT_APK_PRIVATE_KEY: ${{ secrets.PONWRT_APK_PRIVATE_KEY }}
