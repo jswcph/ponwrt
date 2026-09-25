@@ -219,20 +219,20 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Release tag: $TAG"
 
-      - name: Create GitHub Release and upload firmware
+      - name: Create Release
         env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
           set -e
-
+          shopt -s nullglob
+          files=(release/*.itb release/*.bin release/*.img release/*.img.gz release/*.tar.zst release/sha256sums)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No release assets found in release/"
+            exit 1
+          fi
           gh release create "$RELEASE_TAG" \
-            release/*.itb \
-            release/*.bin \
-            release/*.img \
-            release/*.img.gz \
-            release/*.tar.zst \
-            release/sha256sums \
+            "${files[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "PonWrt $RELEASE_TAG" \
