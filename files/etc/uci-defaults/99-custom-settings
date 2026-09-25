@@ -9,7 +9,7 @@ uci set system.@system[0].hostname='OpenWrt'
 uci set system.@system[0].log_size='32'
 
 # LAN 地址
-uci set network.lan.ipaddr='192.168.6.1'
+uci set network.lan.ipaddr='192.168.6.1/24'
 
 # =========================================================
 # 无线配置
