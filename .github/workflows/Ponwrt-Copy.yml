@@ -2,6 +2,8 @@ name: Ponwrt-Copy
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 17 * * 6'  # 北京时间每周日 01:00 自动构建
 
 permissions:
   contents: read
@@ -165,7 +167,7 @@ jobs:
       - name: Upload ${{ matrix.target }} artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ponwrt-${{ matrix.target }}
+          name: Ponwrt-${{ matrix.target }}
           path: release/*
           if-no-files-found: error
           retention-days: 7
@@ -182,7 +184,7 @@ jobs:
       - name: Download firmware artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: ponwrt-*
+          pattern: Ponwrt-*
           path: release
           merge-multiple: true
 
@@ -215,7 +217,7 @@ jobs:
       - name: Generate release tag
         id: tag
         run: |
-          TAG="R$(date -u '+%Y.%m.%d.%H%M')-${GITHUB_SHA::7}"
+          TAG="R$(date -u '+%Y.%m.%d.%H%M')"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Release tag: $TAG"
 
@@ -231,9 +233,49 @@ jobs:
             echo "No release assets found in release/"
             exit 1
           fi
+
+          BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')
+
+          cat > release_notes.md << EOF
+          编译时间：${BUILD_TIME}（北京时间）
+
+          ## 支持机型
+
+          | 平台 | 型号 |
+          |------|------|
+          | AN7581 | FiberHome HG5382A |
+          | AN7581 | FiberHome HG5585F CT |
+          | AN7581 | FiberHome HG5585F CU |
+          | AN7581 | Gemtek XG2010G |
+          | AN7581 | Nokia XG-040G-MD UBI |
+          | AN7581 | Nokia XG-040G-TF UBI |
+          | AN7581 | UnionMan UNG00A |
+          | AN7581 | ZNXT ZN504XG-D |
+          | AN7581 | ZNXT ZN515XG-D |
+          | AN7583 | Nokia XG-040G-MF |
+
+          ## 内置插件
+          - Passwall（Xray+Singbox）
+          - OpenClash（Mihomo内核）
+          - Argon 主题及主题设置面板，已默认启用并汉化
+
+          ## 默认参数
+
+          | 项目 | 值 |
+          |------|-----|
+          | 主机名 | OpenWrt |
+          | 默认密码 | password |
+          | LAN 地址 | 192.168.6.1 |
+          | Wan口 | Pon口 |
+          | Lan口 | lan1~lan4 |
+          | 默认主题 | Argon |
+
+          本项目仅供个人学习测试使用，请勿转发或商用盈利，本仓库不承担法律责任。
+          EOF
+
           gh release create "$RELEASE_TAG" \
             "${files[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "PonWrt $RELEASE_TAG" \
-            --generate-notes
+            --title "PonWrt ${RELEASE_TAG}" \
+            --notes-file release_notes.md
