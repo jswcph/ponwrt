@@ -1,5 +1,5 @@
 #!/bin/sh
-# 首次开机自动执行一次：写入主机名/LAN地址/WiFi名称/默认密码/主题/语言
+# 首次开机自动执行一次：写入主机名/LAN地址/WiFi名称/默认密码/主题/语言/TCP性能优化
 
 # 主机名
 uci set system.@system[0].hostname='OpenWrt'
@@ -7,7 +7,6 @@ uci set system.@system[0].hostname='OpenWrt'
 # 缩小系统日志内存缓冲区
 # 默认64，纯路由+科学上网场景32~48够用，省内存
 uci set system.@system[0].log_size='32'
-
 
 
 # 删除旧接口，但绝不删除系统自动生成的 device 段
@@ -41,11 +40,8 @@ uci set network.wan6='interface'
 uci set network.wan6.device='lan1'
 uci set network.wan6.proto='dhcpv6'
 uci set network.wan.mtu='1492'
-uci commit network
 
-uci set firewall.@defaults[0].flow_offloading='0'
-uci set firewall.@defaults[0].flow_offloading_hw='0'
-uci commit firewall
+uci commit network
 
 # =========================================================
 # 默认密码：password（登录/SSH）
@@ -65,5 +61,37 @@ uci set luci.main.lang='zh_cn'
 uci commit system
 uci commit network
 uci commit luci
+
+# =========================================================
+# TCP 性能优化
+#
+# 针对高延迟/乱序 TCP 链路：
+# 增大 TCP 收发缓冲区，避免 TCP 接收窗口过小导致
+# 单流 TCP 下载速度受限。
+#
+# 当前启动立即生效，同时写入 /etc/sysctl.conf，
+# 后续重启后仍然自动保留。
+# =========================================================
+
+cat >> /etc/sysctl.conf <<'EOF'
+
+# TCP receive buffer
+net.ipv4.tcp_rmem=4096 4194304 33554432
+
+# TCP send buffer
+net.ipv4.tcp_wmem=4096 1048576 33554432
+
+# Maximum socket receive buffer
+net.core.rmem_max=33554432
+
+# Maximum socket send buffer
+net.core.wmem_max=33554432
+
+# TCP memory pressure thresholds
+net.ipv4.tcp_mem=16384 24576 32768
+EOF
+
+# 立即加载 TCP 参数
+sysctl -p /etc/sysctl.conf
 
 exit 0
