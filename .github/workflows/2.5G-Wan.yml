@@ -1,4 +1,4 @@
-name: Ponwrt-Copy
+name: 2.5G-Wan
 
 on:
   workflow_dispatch:
