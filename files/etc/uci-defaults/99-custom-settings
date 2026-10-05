@@ -68,6 +68,46 @@ if [ -n "$WIFI_DEVICES" ]; then
 fi
 
 # =========================================================
+# 防火墙流量卸载
+# =========================================================
+
+uci set firewall.@defaults[0].flow_offloading='0'
+uci set firewall.@defaults[0].flow_offloading_hw='0'
+uci commit firewall
+
+# =========================================================
+# TCP 性能优化
+#
+# 针对高延迟/乱序 TCP 链路：
+# 增大 TCP 收发缓冲区，避免 TCP 接收窗口过小导致
+# 单流 TCP 下载速度受限。
+#
+# 当前启动立即生效，同时写入 /etc/sysctl.conf，
+# 后续重启后仍然自动保留。
+# =========================================================
+
+cat >> /etc/sysctl.conf <<'EOF'
+
+# TCP receive buffer
+net.ipv4.tcp_rmem=4096 4194304 33554432
+
+# TCP send buffer
+net.ipv4.tcp_wmem=4096 1048576 33554432
+
+# Maximum socket receive buffer
+net.core.rmem_max=33554432
+
+# Maximum socket send buffer
+net.core.wmem_max=33554432
+
+# TCP memory pressure thresholds
+net.ipv4.tcp_mem=16384 24576 32768
+EOF
+
+# 立即加载 TCP 参数
+sysctl -p /etc/sysctl.conf
+
+# =========================================================
 # 默认密码：password（登录/SSH）
 # =========================================================
 
