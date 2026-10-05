@@ -1,3 +1,4 @@
+```sh
 #!/bin/sh
 # 首次开机自动执行一次：写入主机名/LAN地址/WiFi名称/默认密码/主题/语言/TCP性能优化
 
@@ -42,6 +43,14 @@ uci set network.wan6.proto='dhcpv6'
 uci set network.wan.mtu='1492'
 
 uci commit network
+
+# =========================================================
+# 防火墙流量卸载
+# =========================================================
+
+uci set firewall.@defaults[0].flow_offloading='0'
+uci set firewall.@defaults[0].flow_offloading_hw='0'
+uci commit firewall
 
 # =========================================================
 # 默认密码：password（登录/SSH）
@@ -95,3 +104,4 @@ EOF
 sysctl -p /etc/sysctl.conf
 
 exit 0
+```
