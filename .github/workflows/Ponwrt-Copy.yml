@@ -275,5 +275,5 @@ jobs:
             "${files[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "PonWrt ${RELEASE_TAG}" \
+            --title "Pon-Wan ${RELEASE_TAG}" \
             --notes-file release_notes.md
