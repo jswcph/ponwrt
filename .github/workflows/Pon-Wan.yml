@@ -1,4 +1,4 @@
-name: Ponwrt-Copy
+name: Pon-Wan
 
 on:
   workflow_dispatch:
