@@ -2,8 +2,6 @@ name: 2.5G-Wan
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 17 * * 6'  # 北京时间每周日 01:00 自动构建
 
 permissions:
   contents: read
