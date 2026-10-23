@@ -150,6 +150,12 @@ jobs:
           find "$TARGET_DIR" -type f \( -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz' \) \
             -exec cp -t "$RELEASE_DIR" {} +
 
+          # Rename Airoha firmware assets for this release.
+          for file in "$RELEASE_DIR"/ponwrt-airoha-*; do
+            [ -e "$file" ] || continue
+            mv "$file" "$RELEASE_DIR/2.5G-${file##*/ponwrt-}"
+          done
+
           count="$(find "$RELEASE_DIR" -maxdepth 1 -type f \( -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz' \) | wc -l)"
 
           [ "$count" -gt 0 ] || {
