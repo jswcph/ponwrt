@@ -3,9 +3,9 @@ name: Schedule PonWrt Builds
 on:
   workflow_dispatch:
   schedule:
-    # 每周六晚上 24:00（北京时间，即周日 00:00）
-    # GitHub Actions 使用 UTC，因此为周六 16:00 UTC
-    - cron: '0 16 * * 6'
+    # 每周六凌晨 01:00（北京时间）
+    # GitHub Actions 使用 UTC，因此为周五 17:00 UTC
+    - cron: '0 17 * * 5'
 
 permissions:
   actions: write
