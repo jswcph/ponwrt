@@ -60,6 +60,38 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+      # 源码树里缺少 package/libs/libffi，导致 python3 编译时找不到 ffi.h。
+      # 这里从上游补回来（只拉这一个目录，速度很快）。
+      - name: Add missing libffi package
+        run: |
+          set -euo pipefail
+
+          if [ -f package/libs/libffi/Makefile ]; then
+            echo "libffi already present, skip."
+            exit 0
+          fi
+
+          for repo in \
+            https://github.com/openwrt/openwrt.git \
+            https://github.com/immortalwrt/immortalwrt.git; do
+            rm -rf /tmp/libffi-src
+            if git clone --depth=1 --filter=blob:none --sparse "$repo" /tmp/libffi-src \
+              && git -C /tmp/libffi-src sparse-checkout set package/libs/libffi \
+              && [ -f /tmp/libffi-src/package/libs/libffi/Makefile ]; then
+              mkdir -p package/libs
+              cp -r /tmp/libffi-src/package/libs/libffi package/libs/libffi
+              echo "libffi copied from $repo"
+              break
+            fi
+          done
+
+          [ -f package/libs/libffi/Makefile ] || {
+            echo "ERROR: failed to add libffi package"
+            exit 1
+          }
+
+          grep -E '^PKG_(NAME|VERSION)' package/libs/libffi/Makefile
+
       - name: Prepare Mihomo Meta core
         run: |
           set -euo pipefail
@@ -134,8 +166,10 @@ jobs:
 
       - name: Build ${{ matrix.target }}
         run: |
-          # 先并行编译；失败后用 -j1 V=sc 重跑，输出完整的错误日志
-          make -j"$(nproc)" V=sc || make -j1 V=sc
+          # 先安静地并行编译（日志小）；
+          # 失败后用 -j1 V=s 接着编译剩余部分，输出完整的错误日志。
+          # 已编译完成的包不会重编，所以重试很快。
+          make -j"$(nproc)" || make -j1 V=s
 
       - name: Collect ${{ matrix.target }} firmware
         run: |
@@ -151,10 +185,16 @@ jobs:
             -exec cp -t "$RELEASE_DIR" {} +
 
           # Rename Airoha firmware assets for this release.
+          renamed=0
           for file in "$RELEASE_DIR"/ponwrt-airoha-*; do
             [ -e "$file" ] || continue
             mv "$file" "$RELEASE_DIR/2.5G-${file##*/ponwrt-}"
+            renamed=$((renamed + 1))
           done
+          if [ "$renamed" -eq 0 ]; then
+            echo "WARNING: no file matched ponwrt-airoha-*, nothing was renamed. Files in $RELEASE_DIR:"
+            ls -1 "$RELEASE_DIR"
+          fi
 
           count="$(find "$RELEASE_DIR" -maxdepth 1 -type f \( -name '*.itb' -o -name '*.bin' -o -name '*.img' -o -name '*.img.gz' \) | wc -l)"
 
