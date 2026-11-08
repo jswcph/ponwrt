@@ -60,6 +60,36 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+      - name: Add missing libffi package
+        run: |
+          set -euo pipefail
+
+          if [ -f package/libs/libffi/Makefile ]; then
+            echo "libffi already present, skip."
+            exit 0
+          fi
+
+          for repo in \
+            https://github.com/openwrt/openwrt.git \
+            https://github.com/immortalwrt/immortalwrt.git; do
+            rm -rf /tmp/libffi-src
+            if git clone --depth=1 --filter=blob:none --sparse "$repo" /tmp/libffi-src \
+              && git -C /tmp/libffi-src sparse-checkout set package/libs/libffi \
+              && [ -f /tmp/libffi-src/package/libs/libffi/Makefile ]; then
+              mkdir -p package/libs
+              cp -r /tmp/libffi-src/package/libs/libffi package/libs/libffi
+              echo "libffi copied from $repo"
+              break
+            fi
+          done
+
+          [ -f package/libs/libffi/Makefile ] || {
+            echo "ERROR: failed to add libffi package"
+            exit 1
+          }
+
+          grep -E '^PKG_(NAME|VERSION)' package/libs/libffi/Makefile
+
       - name: Prepare Mihomo Meta core
         run: |
           set -euo pipefail
