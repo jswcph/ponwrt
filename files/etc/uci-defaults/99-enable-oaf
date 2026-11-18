@@ -1,0 +1,5 @@
+#!/bin/sh
+# Enable OpenAppFilter at first boot. Its init script creates default UCI
+# configuration files before starting the daemon and kernel module.
+/etc/init.d/appfilter enable
+exit 0
