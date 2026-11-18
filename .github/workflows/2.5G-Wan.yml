@@ -35,6 +35,14 @@ jobs:
           test -f package/OpenAppFilter/luci-app-oaf/Makefile
           test -f package/OpenAppFilter/open-app-filter/Makefile
           test -f package/OpenAppFilter/oaf/Makefile
+
+          # OpenWrt package scanner discovers packages under package/<category>/<package>.
+          # Expose each OAF component at that level so kmod-oaf is a real selectable package.
+          for component in luci-app-oaf open-app-filter oaf; do
+            rm -rf "package/$component"
+            cp -a "package/OpenAppFilter/$component" "package/$component"
+          done
+
           echo "OpenAppFilter source pinned to $OAF_COMMIT"
 
       - name: Free build space
