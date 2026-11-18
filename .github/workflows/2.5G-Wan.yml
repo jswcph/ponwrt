@@ -36,13 +36,6 @@ jobs:
           test -f package/OpenAppFilter/open-app-filter/Makefile
           test -f package/OpenAppFilter/oaf/Makefile
 
-          # OpenWrt package scanner discovers packages under package/<category>/<package>.
-          # Expose each OAF component at that level so kmod-oaf is a real selectable package.
-          for component in luci-app-oaf open-app-filter oaf; do
-            rm -rf "package/$component"
-            cp -a "package/OpenAppFilter/$component" "package/$component"
-          done
-
           echo "OpenAppFilter source pinned to $OAF_COMMIT"
 
       - name: Free build space
@@ -178,7 +171,20 @@ jobs:
           ./scripts/kconfig.pl + \
             "configs/${{ matrix.target }}.config" \
             configs/release.config > .config
+
+          # Selecting luci-app-oaf pulls in appfilter and the kmod-oaf kernel package.
+          # Keep this after merging device configs and before defconfig dependency resolution.
+          grep -qx 'CONFIG_PACKAGE_luci-app-oaf=y' .config || \
+            echo 'CONFIG_PACKAGE_luci-app-oaf=y' >> .config
           make defconfig
+
+          # Fail early rather than silently producing firmware without OAF's kernel module.
+          for symbol in CONFIG_PACKAGE_luci-app-oaf CONFIG_PACKAGE_appfilter CONFIG_PACKAGE_kmod-oaf; do
+            grep -qx "${symbol}=y" .config || {
+              echo "ERROR: ${symbol} was not selected by Kconfig"
+              exit 1
+            }
+          done
 
       - name: Download sources
         run: make download -j"$(nproc)"
