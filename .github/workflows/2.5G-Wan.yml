@@ -26,6 +26,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Add OpenAppFilter (OAF)
+        run: |
+          set -euo pipefail
+          OAF_COMMIT="0814b87f57181ef238b9a21604c999e98de73cf2"
+          git clone https://github.com/destan19/OpenAppFilter.git package/OpenAppFilter
+          git -C package/OpenAppFilter checkout "$OAF_COMMIT"
+          test -f package/OpenAppFilter/luci-app-oaf/Makefile
+          test -f package/OpenAppFilter/open-app-filter/Makefile
+          test -f package/OpenAppFilter/oaf/Makefile
+          echo "OpenAppFilter source pinned to $OAF_COMMIT"
+
       - name: Free build space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
