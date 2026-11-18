@@ -312,6 +312,7 @@ jobs:
           ## 内置插件
           - Passwall（Xray+Singbox）
           - OpenClash（Mihomo内核）
+          - OpenAppFilter（OAF 应用过滤）
           - Argon 主题及主题设置面板，已默认启用并汉化
 
           ## 默认参数
